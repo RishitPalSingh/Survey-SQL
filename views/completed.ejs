@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Survey Completed</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+        }
+        .score {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <% if(locals.alreadyCompleted) { %>
+        <h1>You have already completed the survey!</h1>
+        <p>Your score:</p>
+        <p class="score"><%= score %></p>
+    <% } else { %>
+        <h1>Survey Completed!</h1>
+        <p>Your score:</p>
+        <p class="score"><%= score %></p>
+    <% } %>
+</body>
+</html>

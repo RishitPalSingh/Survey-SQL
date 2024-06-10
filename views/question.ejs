@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title><%= question.question_text %></title>
+    <link rel="stylesheet" type="text/css" href="/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1><%= question.question_text %></h1>
+        <form action="/answer" method="post">
+            <input type="hidden" name="userId" value="<%= userId %>">
+            <input type="hidden" name="questionId" value="<%= question.id %>">
+            <div class="radio-options">
+                <% options.forEach(option => { %>
+                    <label>
+                        <input type="radio" name="optionId" value="<%= option.id %>" required>
+                        <%= option.option_text %>
+                    </label><br>
+                <% }) %>
+            </div>
+            <button type="submit">Next</button>
+        </form>
+    </div>
+</body>
+</html>
