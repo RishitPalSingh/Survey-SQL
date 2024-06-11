@@ -31,24 +31,24 @@ app.post('/start', async (req, res) => {
     try {
         const client = await pool.connect();
 
-    
-        let userResult = await client.query(`SELECT * FROM users WHERE email = ${email}`);
+        // Check if the user already exists
+        let userResult = await client.query('SELECT * FROM users WHERE email = $1', [email]);
         let userId;
 
         if (userResult.rows.length > 0) {
-    
+            // User exists
             userId = userResult.rows[0].id;
 
-            
-            const responseResult = await client.query(`SELECT * FROM responses WHERE user_id = ${userId}`);
+            // Check if the user has any responses
+            const responseResult = await client.query('SELECT * FROM responses WHERE user_id = $1', [userId]);
             if (responseResult.rows.length > 0) {
-            
+                // User has already completed the survey
                 const user = userResult.rows[0];
                 res.render('completed', { alreadyCompleted: true, score: user.score });
                 return;
             }
 
-            
+            // User hasn't completed the survey yet
             const lastQuestionId = userResult.rows[0].last_question_id;
             if (lastQuestionId) {
                 res.redirect(`/question/${lastQuestionId}?userId=${userId}`);
@@ -56,8 +56,8 @@ app.post('/start', async (req, res) => {
                 res.redirect(`/question/1?userId=${userId}`);
             }
         } else {
-            
-            userResult = await client.query(`INSERT INTO users (name, email) VALUES (${name}, ${email}) RETURNING id`);
+            // User does not exist, create new user
+            userResult = await client.query('INSERT INTO users (name, email) VALUES ($1, $2) RETURNING id', [name, email]);
             userId = userResult.rows[0].id;
             res.redirect(`/question/1?userId=${userId}`);
         }
@@ -74,10 +74,10 @@ app.get('/question/:id', async (req, res) => {
     const questionId = req.params.id;
 
     try {
-        const questionResult = await pool.query(`SELECT * FROM questions WHERE id =${questionId}`);
+        const questionResult = await pool.query('SELECT * FROM questions WHERE id = $1', [questionId]);
         if (questionResult.rows.length === 0) {
-        
-            const userResult = await pool.query(`SELECT * FROM users WHERE id = $${userId}`);
+            // If there are no more questions, display the score
+            const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
             const user = userResult.rows[0];
             res.render('completed', { score: user.score });
             return;
@@ -85,7 +85,7 @@ app.get('/question/:id', async (req, res) => {
 
         const question = questionResult.rows[0];
 
-        const optionsResult = await pool.query(`SELECT * FROM options WHERE question_id =${questionId}`);
+        const optionsResult = await pool.query('SELECT * FROM options WHERE question_id = $1', [questionId]);
         const options = optionsResult.rows;
 
         res.render('question', { question, options, userId });
@@ -100,29 +100,29 @@ app.post('/answer', async (req, res) => {
     try {
         const client = await pool.connect();
 
-        
-        await client.query(`INSERT INTO responses (user_id, question_id, option_id) VALUES (${userId}, ${questionId}, ${optionId})`);
+        // Record the user's response
+        await client.query('INSERT INTO responses (user_id, question_id, option_id) VALUES ($1, $2, $3)', [userId, questionId, optionId]);
 
+        // Update user's last question id
+        await client.query('UPDATE users SET last_question_id = $1 WHERE id = $2', [questionId, userId]);
 
-        await client.query(`UPDATE users SET last_question_id = ${questionId} WHERE id = ${userId}`);
-
-        
-        const optionScore = await client.query(`SELECT score FROM options WHERE id = ${optionId}`);
+        // Update user's score
+        const optionScore = await client.query('SELECT score FROM options WHERE id = $1', [optionId]);
         const score = optionScore.rows[0].score;
 
-        await client.query(`UPDATE users SET score = score + ${score} WHERE id = ${userId}`);
+        await client.query('UPDATE users SET score = score + $1 WHERE id = $2', [score, userId]);
 
-    
-        const nextQuestionResult = await client.query(`SELECT next_question_id FROM options WHERE id = ${optionId}`);
+        // Get the next question ID
+        const nextQuestionResult = await client.query('SELECT next_question_id FROM options WHERE id = $1', [optionId]);
         const nextQuestionId = nextQuestionResult.rows[0].next_question_id;
 
         if (nextQuestionId === 11) {
-    
-            const userResult = await client.query(`SELECT * FROM users WHERE id = ${userId}`);
+            // End of the survey, display the score
+            const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
             const user = userResult.rows[0];
             res.render('completed', { score: user.score });
         } else {
-            
+            // Redirect to the next question
             res.redirect(`/question/${nextQuestionId}?userId=${userId}`);
         }
     } catch (err) {
@@ -137,4 +137,5 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
+
 
